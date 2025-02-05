@@ -1,17 +1,19 @@
-from fastapi import FastAPI, Request, Response, Depends, status, Form, HTTPException
+from fastapi import FastAPI, Request, Depends, status, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List
 from passlib.context import CryptContext
 from fastapi_login import LoginManager
 import os
 from dotenv import load_dotenv
-from datetime import datetime, timedelta
-
+from datetime import timedelta
+from bson import ObjectId
 from langchain_community.document_loaders import WebBaseLoader
+from pymongo.errors import PyMongoError
+
 from chains import Chain
 from portfolio import Portfolio
 from utils import clean_text
@@ -201,7 +203,7 @@ async def register(
 
 # Initialize required objects
 chain = Chain()
-portfolio = Portfolio()
+portfolioo = Portfolio()
 
 
 class URLInput(BaseModel):
@@ -209,23 +211,107 @@ class URLInput(BaseModel):
 
 
 @app.post("/generate-email/")
-async def generate_email(input_data: URLInput):
+async def generate_email(input_data: URLInput, user: User = Depends(manager)):
     try:
         loader = WebBaseLoader([input_data.url])
         pages = loader.load()
         if not pages:
             raise ValueError("No data found at the provided URL.")
         data = clean_text(pages.pop().page_content)
-        portfolio.load_portfolio()
+        portfolioo.load_portfolio()
         jobs = chain.extract_jobs(data)
         emails = []
+
+        db2 = client["user_info"]
+        job_collection = db2["job_applications"]
+
+        name = user["name"]
+        position = user["position"]
+        company = user["company"]
+
         for job in jobs:
             skills = job.get('skills', [])
-            links = portfolio.query_links(skills)
-            email = chain.write_mail(job, links)
+            links = portfolioo.query_links(skills)
+            email = chain.write_mail(job, links, name, position, company)
             emails.append({"job": job, "email": email})
+
+            job_entry = {
+                "username": user["username"],
+                "URL": input_data.url,
+                "role": job.get("role"),
+                "email": email,
+                "status": "Draft"
+            }
+
+            await job_collection.insert_one(job_entry)
+
         return {"emails": emails}
     except ValueError as ve:
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+
+@app.get("/job-tracker", response_class=HTMLResponse)
+async def job_tracker_route(request: Request, user: User = Depends(manager)):
+    if not user:
+        return RedirectResponse("/login")
+
+    try:
+        username = user["username"]
+
+        db3 = client["user_info"]
+        job_collection = db3["job_applications"]
+
+        jobs = await job_collection.find({"username": username}).to_list(100)
+
+        if not jobs:
+            return templates.TemplateResponse(
+                "job_tracker.html",
+                {"request": request, "title": "Job Tracker", "message": "No job applications found. Start tracking!",
+                 "user": user},
+            )
+
+        return templates.TemplateResponse(
+            "job_tracker.html",
+            {"request": request, "title": "Job Tracker", "jobs": jobs, "user": user},
+        )
+
+    except PyMongoError as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {e}")
+
+
+@app.post("/update-status/{job_id}")
+async def update_status(job_id: str, status: str = Form(...)):
+    try:
+        # Convert job_id to ObjectId
+        try:
+            job_id = ObjectId(job_id)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid job_id format")
+
+        # Validate status
+        valid_statuses = ["Draft", "Applied", "Interview", "Offered", "Rejected", "Accepted"]
+        if status not in valid_statuses:
+            raise HTTPException(status_code=400, detail="Invalid status value")
+
+        # Connect to job_applications collection
+        db3 = client["user_info"]
+        job_collection = db3["job_applications"]
+
+        # Check if the job exists
+        job = await job_collection.find_one({"_id": job_id})
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+
+        # Update the job status
+        result = await job_collection.update_one({"_id": job_id}, {"$set": {"status": status}})
+        if result.modified_count == 0:
+            raise HTTPException(status_code=500, detail="Failed to update the job status")
+
+    except HTTPException:
+        raise  # Re-raise specific exceptions
+    except Exception as e:
+        # Log the exception and return an error response
+        print(f"Error updating job status: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred while updating the job status")
