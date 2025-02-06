@@ -29,6 +29,7 @@
     <div id="results" class="mt-5 mb-5">
         <h3>Generated Emails:</h3>
         <div id="emailsContainer"></div>
+        <div id="timeDisplay" class="mt-3"></div>
     </div>
 </div>
 
@@ -40,6 +41,8 @@
         const url = document.getElementById("url").value;
         const resultsContainer = document.getElementById("emailsContainer");
         const loadingIndicator = document.getElementById("loadingIndicator");
+        const timeDisplay = document.getElementById("timeDisplay"); // New element for time display
+        timeDisplay.innerHTML = ""; // Clear previous time
         resultsContainer.innerHTML = "";
         loadingIndicator.style.display = "inline-block";
 
@@ -76,6 +79,11 @@
             resultsContainer.innerHTML =
               '<div class="alert alert-warning">No emails generated.</div>';
           }
+
+          if (data.duration) {
+            timeDisplay.innerHTML = `<p class="mt-3 text-success">Time taken: ${data.duration.toFixed(2)} seconds</p>`;
+          }
+
         } catch (error) {
           resultsContainer.innerHTML = `<div class="alert alert-danger">An unexpected error occurred: ${error.message}</div>`;
         } finally {
