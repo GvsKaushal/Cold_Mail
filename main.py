@@ -18,6 +18,11 @@ import time
 from chains import Chain
 from portfolio import Portfolio
 from utils import clean_text
+import redis
+import json
+
+# Connect to Redis
+redis_client = redis.Redis(host='localhost', port=6379, decode_responses=True)
 
 load_dotenv()
 SECRET_KEY = os.getenv('SECRET_KEY')
@@ -35,9 +40,14 @@ job_applications = db.get_collection("job_applications")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    print("Redis connection established")
     print("MongoDB connection established")
 
     yield  # Run the application
+
+    if redis_client:
+        redis_client.close()
+        print("Redis connection closed")
 
     # Close MongoDB client on shutdown
     if mongo_client:
@@ -218,13 +228,21 @@ class URLInput(BaseModel):
 async def generate_email(input_data: URLInput, user: User = Depends(manager)):
     start_time = time.time()
     try:
-        loader = WebBaseLoader([input_data.url])
-        pages = loader.load()
-        if not pages:
-            raise ValueError("No data found at the provided URL.")
-        data = clean_text(pages.pop().page_content)
+        cache_key = f"{input_data.url}"
+        cached_result = redis_client.get(cache_key)
+
+        if cached_result:
+            print("Cache hit - returning cached result")
+            jobs = eval(cached_result)
+        else:
+            loader = WebBaseLoader([input_data.url])
+            pages = loader.load()
+            if not pages:
+                raise ValueError("No data found at the provided URL.")
+            data = clean_text(pages.pop().page_content)
+            jobs = chain.extract_jobs(data)
+
         portfolioo.load_portfolio(user)
-        jobs = chain.extract_jobs(data)
         emails = []
 
         name = user["name"]
@@ -247,9 +265,14 @@ async def generate_email(input_data: URLInput, user: User = Depends(manager)):
 
             await job_applications.insert_one(job_entry)
 
-        end_time = time.time()  # Record the end time
-        duration = end_time - start_time  # Calculate duration in seconds
-        print(f"Email generation took {duration:.2f} seconds")  # Log the duration
+        redis_client.set(cache_key, str(jobs), ex=300)
+
+        username = user["username"]
+        jobs_cache_key = f"jobs:{username}"
+        redis_client.delete(jobs_cache_key)
+
+        end_time = time.time()
+        duration = end_time - start_time
 
         return {"emails": emails, "duration": duration}
     except ValueError as ve:
@@ -259,34 +282,47 @@ async def generate_email(input_data: URLInput, user: User = Depends(manager)):
 
 
 @app.get("/job-tracker", response_class=HTMLResponse)
-async def job_tracker_route(request: Request, user: User = Depends(manager), page: int = 1, limit: int = 2):
+async def job_tracker_route(request: Request, user: User = Depends(manager)):
     if not user:
         return RedirectResponse("/login")
 
     try:
         username = user["username"]
+        cache_key = f"jobs:{username}"
 
-        skip = (page - 1) * limit
+        cached_jobs = redis_client.get(cache_key)
 
-        jobs = await job_applications.find({"username": username}).sort("_id", -1).skip(skip).limit(limit).to_list(
-            limit)
+        if cached_jobs:
+            jobs = json.loads(cached_jobs)
+            print("Cache hit: Retrieved jobs from Redis")
+        else:
+            # Retrieve all jobs in descending order
+            jobs_cursor = job_applications.find({"username": username}).sort("_id", -1)
+            jobs = [job async for job in jobs_cursor]
 
-        if not jobs:
-            return templates.TemplateResponse(
-                "job_tracker.html",
-                {
-                    "request": request,
-                    "title": "Job Tracker",
-                    "message": "No job applications found. Start tracking!",
-                    "user": user,
-                    "page": page,
-                    "limit": limit
-                },
-            )
+            # Convert ObjectId to string
+            for job in jobs:
+                job["_id"] = str(job["_id"])
+
+            # Store jobs in Redis
+            redis_client.set(cache_key, json.dumps(jobs), ex=600)  # Cache for 10 minutes
+            print("Cache miss: Retrieved jobs from MongoDB and stored in Redis")
+
+        # Calculate pagination data for the frontend
+        total_jobs = len(jobs)
+        limit = 2  # Default limit per page
+        total_pages = (total_jobs + limit - 1) // limit
 
         return templates.TemplateResponse(
             "job_tracker.html",
-            {"request": request, "title": "Job Tracker", "jobs": jobs, "user": user, "page": page, "limit": limit},
+            {
+                "request": request,
+                "title": "Job Tracker",
+                "jobs": jobs,
+                "user": user["username"],
+                "total_pages": total_pages,
+                "limit": limit,
+            },
         )
 
     except PyMongoError as e:
@@ -294,8 +330,12 @@ async def job_tracker_route(request: Request, user: User = Depends(manager), pag
 
 
 @app.post("/update-status/{job_id}")
-async def update_status(job_id: str, status: str = Form(...)):
+async def update_status(job_id: str, status: str = Form(...), user: User = Depends(manager)):
     try:
+        username = user["username"]
+        jobs_cache_key = f"jobs:{username}"
+        redis_client.delete(jobs_cache_key)
+
         job_id = ObjectId(job_id)
 
         result = await job_applications.update_one({"_id": job_id}, {"$set": {"status": status}})
