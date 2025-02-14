@@ -188,6 +188,7 @@ async def register(
         )
 
     portfolios = []
+    links = []
 
     current_portfolio = {}
     for key, value in form_data.multi_items():
@@ -207,7 +208,8 @@ async def register(
         "position": position,
         "company": company,
         "hashed_password": hashed_password,
-        "portfolio": portfolios
+        "portfolio": portfolios,
+        "links": links
     }
 
     await users.insert_one(user_data)
@@ -228,6 +230,13 @@ class URLInput(BaseModel):
 async def generate_email(input_data: URLInput, user: User = Depends(manager)):
     start_time = time.time()
     try:
+
+        generated_links = user["links"]
+
+        if input_data.url in generated_links:
+            already_exists = "Job Already Exists check Job Tracker"
+            return {"already_exists": already_exists}
+
         cache_key = f"{input_data.url}"
         cached_result = redis_client.get(cache_key)
 
@@ -264,6 +273,13 @@ async def generate_email(input_data: URLInput, user: User = Depends(manager)):
             }
 
             await job_applications.insert_one(job_entry)
+
+        generated_links.append(input_data.url)
+
+        await users.update_one(
+            {"username": user["username"]},
+            {"$set": {"links": generated_links}}
+        )
 
         redis_client.set(cache_key, str(jobs), ex=300)
 
@@ -404,3 +420,37 @@ async def update_user_details(
         )
 
     return RedirectResponse("/home", status_code=status.HTTP_302_FOUND)
+
+
+@app.delete("/delete-job/{job_id}")
+async def delete_job(job_id: str, user: User = Depends(manager)):
+    try:
+        username = user["username"]
+        generated_links = user["links"]
+
+        job_id = ObjectId(job_id)
+
+        job = await job_applications.find_one({"_id": job_id})
+        url = job["URL"]
+
+        if url in generated_links:
+            generated_links.remove(url)
+
+        await users.update_one(
+            {"username": user["username"]},
+            {"$set": {"links": generated_links}}
+        )
+
+        result = await job_applications.delete_one({"_id": job_id, "username": username})
+
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Job not found or unauthorized")
+
+        jobs_cache_key = f"jobs:{username}"
+        redis_client.delete(jobs_cache_key)
+
+        return {"detail": "Job deleted successfully"}
+
+    except Exception as e:
+        print(f"Error deleting job: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred while deleting the job")

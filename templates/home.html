@@ -2,20 +2,20 @@
 {% include 'navbar.html'%}
 
 <div class="container mt-5">
-    <h1 class="text-center">Cold Mail Generator</h1>
-    <form id="generateEmailForm" class="mt-4">
+    <h1 class="text-center text-primary">Cold Mail Generator</h1>
+    <form id="generateEmailForm" class="mt-4 p-4 shadow-sm rounded bg-light">
         <div class="mb-3">
             <label for="url" class="form-label">Enter a URL:</label>
             <input
                     type="url"
                     id="url"
                     name="url"
-                    class="form-control"
+                    class="form-control shadow-sm"
                     placeholder="https://example.com"
                     required
             />
         </div>
-        <button type="submit" class="btn btn-outline-primary">
+        <button type="submit" class="btn btn-outline-primary shadow-sm">
             Generate Email
         </button>
         <div
@@ -27,8 +27,8 @@
         </div>
     </form>
     <div id="results" class="mt-5 mb-5">
-        <h3>Generated Emails:</h3>
-        <div id="emailsContainer"></div>
+        <h3 class="text-center text-secondary">Generated Emails:</h3>
+        <div id="emailsContainer" class="row justify-content-center"></div>
         <div id="timeDisplay" class="mt-3"></div>
     </div>
 </div>
@@ -62,6 +62,12 @@
           }
 
           const data = await response.json();
+
+          if (data.already_exists) {
+            resultsContainer.innerHTML = `<div class="alert alert-warning w-50 text-center"> <h4>${data.already_exists}</h4></div>`;
+            return;
+          }
+
           if (data.emails.length > 0) {
             data.emails.forEach((item) => {
               const emailHTML = `
@@ -69,7 +75,7 @@
                               <div class="card-body">
                                   <p><strong>Email:</strong></p>
                                   <pre>${item.email}</pre>
-                                  <button class="btn btn-outline-dark btn-lg" onclick="copyToClipboard(this)">Copy</button>
+                                  <button class="btn btn-dark rounded-pill" onclick="copyToClipboard(this)">Copy</button>
                               </div>
                           </div>
                       `;
@@ -81,7 +87,7 @@
           }
 
           if (data.duration) {
-            timeDisplay.innerHTML = `<p class="mt-3 text-success">Time taken: ${data.duration.toFixed(2)} seconds</p>`;
+            timeDisplay.innerHTML = `<p class="mt-3 text-center text-success">Time taken: ${data.duration.toFixed(2)} seconds</p>`;
           }
 
         } catch (error) {

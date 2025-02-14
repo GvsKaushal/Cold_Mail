@@ -3,17 +3,19 @@
 <style>
     .container {
         margin-top: 1em;
-        max-width: 500px;
+        max-width: 600px;
         margin-left: auto;
         margin-right: auto;
     }
     .alert {
         margin-top: 1em;
     }
+
 </style>
+
 <div class="container">
     <h1 class="text-center mb-4">Login</h1>
-    <form action="/login" method="POST">
+    <form action="/login" method="POST" class="p-3 shadow-sm rounded bg-light">
         <div class="mb-3">
             <label for="username" class="form-label">Username</label>
             <input type="text" class="form-control" id="username" name="username" required>
