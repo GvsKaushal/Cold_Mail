@@ -260,7 +260,7 @@ async def generate_email(input_data: URLInput, user: User = Depends(manager)):
 
         for job in jobs:
             skills = job.get('skills', [])
-            links = portfolioo.query_links(skills)
+            links = portfolioo.query_links(skills,user["username"])
             email = chain.write_mail(job, links, name, position, company)
             emails.append({"job": job, "email": email})
 
@@ -413,11 +413,7 @@ async def update_user_details(
     result = await users.update_one({"username": username}, {"$set": update_data})
 
     if result.modified_count == 0:
-        return templates.TemplateResponse(
-            "edit_user.html",
-            {"request": request, "title": "Edit Profile", "error": "No changes detected"},
-            status_code=status.HTTP_400_BAD_REQUEST,
-        )
+        return RedirectResponse("/home", status_code=status.HTTP_302_FOUND)
 
     return RedirectResponse("/home", status_code=status.HTTP_302_FOUND)
 
