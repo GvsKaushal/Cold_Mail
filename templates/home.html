@@ -1,35 +1,146 @@
 {% include 'header.html'%}
 {% include 'navbar.html'%}
 
-<div class="container mt-5">
+<style>
+    body {
+      font-family: "Poppins", sans-serif;
+      background-color: #0d1117;
+      /* Dark background */
+      color: #ffffff;
+    }
+
+    /* ---- Hero Section ---- */
+    .hero-section {
+      text-align: center;
+      padding: 20px 20px 10px 20px;
+      background: #141b23;
+      /* Slightly darker tone for hero */
+    }
+
+    .hero-section h1 {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      font-weight: 600;
+    }
+
+    /* ---- Form Section ---- */
+    .form-section {
+      background-color: #161b22;
+      border-radius: 10px;
+      padding: 2rem;
+      margin-top: 10px;
+      /* Slight overlap with hero */
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .form-label {
+      font-weight: 500;
+    }
+
+    .form-control {
+      background-color: #21262d;
+      border: 1px solid #30363d;
+      color: #c9d1d9;
+      border-radius: 5px;
+      padding: 0.75rem;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: #30363d;
+    }
+
+
+    /* ---- Results Section ---- */
+    .results-section {
+      background-color: #161b22;
+      border-radius: 10px;
+      padding: 2rem;
+      margin-top: 2rem;
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .results-section h3 {
+      text-align: center;
+      /* margin-bottom: 1.5rem; */
+      font-weight: 500;
+    }
+
+    .alert {
+      border-radius: 6px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .alert-danger {
+      background-color: #ff4d4d;
+      color: #fff;
+      border: none;
+    }
+
+    .alert-warning {
+      background-color: #ffc107;
+      color: #0d1117;
+      border: none;
+    }
+
+    .card {
+      background-color: #21262d;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+    }
+
+    .card-body {
+      padding: 1rem;
+    }
+
+    .card-body p {
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+    }
+
+    .card-body pre {
+      background-color: #21262d;
+      border: none;
+      color: #c9d1d9;
+      padding: 0;
+      margin-bottom: 1rem;
+    }
+
+    .text-success {
+      color: #4caf50 !important;
+    }
+</style>
+
+<div class="hero-section">
+    <h1>Grow your Network at the Speed of AI</h1>
+</div>
+
+
+<div class="container">
     <h1 class="text-center text-primary">Cold Mail Generator</h1>
-    <form id="generateEmailForm" class="mt-4 p-4 shadow-sm rounded bg-light">
-        <div class="mb-3">
-            <label for="url" class="form-label">Enter a URL:</label>
-            <input
-                    type="url"
-                    id="url"
-                    name="url"
-                    class="form-control shadow-sm"
-                    placeholder="https://example.com"
-                    required
-            />
-        </div>
-        <button type="submit" class="btn btn-outline-primary shadow-sm">
-            Generate Email
-        </button>
-        <div
-                class="spinner-border text-primary"
-                role="status"
-                id="loadingIndicator"
-        >
-            <span class="visually-hidden">Loading...</span>
-        </div>
-    </form>
-    <div id="results" class="mt-5 mb-5">
-        <h3 class="text-center text-secondary">Generated Emails:</h3>
+    <div class="form-section" id="generator">
+        <form id="generateEmailForm" class="mt-1">
+            <div class="mb-3">
+                <label for="url" class="form-label">Enter a URL:</label>
+                <input type="url" id="url" name="url" class="form-control shadow-sm"
+                       style="background-color: #21262d; color: #c9d1d9;" placeholder="https://example.com"
+                       required/>
+            </div>
+            <button type="submit" class="text-white btn btn-outline-primary rounded-pill shadow-sm">
+                Generate Email
+            </button>
+            <div class="spinner-border text-primary" role="status" id="loadingIndicator">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </form>
+    </div>
+
+    <div id="results" class="results-section">
+        <h3 class="text-secondary">Generated Emails:</h3>
         <div id="emailsContainer" class="row justify-content-center"></div>
-        <div id="timeDisplay" class="mt-3"></div>
+        <div id="timeDisplay" class="mt-3 text-center"></div>
     </div>
 </div>
 
@@ -71,14 +182,14 @@
           if (data.emails.length > 0) {
             data.emails.forEach((item) => {
               const emailHTML = `
-                          <div class="card mt-3">
-                              <div class="card-body">
-                                  <p><strong>Email:</strong></p>
-                                  <pre>${item.email}</pre>
-                                  <button class="btn btn-dark rounded-pill" onclick="copyToClipboard(this)">Copy</button>
-                              </div>
-                          </div>
-                      `;
+                            <div class="card mt-3">
+                                <div class="card-body">
+                                    <p><strong>Email:</strong></p>
+                                    <pre>${item.email}</pre>
+                                    <button class="btn btn-light rounded-pill" onclick="copyToClipboard(this)">Copy</button>
+                                </div>
+                            </div>
+                        `;
               resultsContainer.innerHTML += emailHTML;
             });
           } else {
@@ -105,10 +216,10 @@
           const notification = document.createElement("div");
           notification.innerText = "Email copied to clipboard!";
           notification.style.position = "fixed";
-          notification.style.top = "30px";
-          notification.style.right = "30px";
-          notification.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
-          notification.style.color = "#fff";
+          notification.style.bottom = "30px";
+          notification.style.left = "30px";
+          notification.style.backgroundColor = "rgba(255, 255, 255, 0.7)";
+          notification.style.color = "#000";
           notification.style.padding = "10px";
           notification.style.borderRadius = "5px";
           notification.style.zIndex = "1000";
@@ -119,8 +230,8 @@
           const notification = document.createElement("div");
           notification.innerText = "Failed to copy: " + err;
           notification.style.position = "fixed";
-          notification.style.top = "30px";
-          notification.style.right = "30px";
+          notification.style.bottom = "30px";
+          notification.style.left = "30px";
           notification.style.backgroundColor = "rgba(255, 0, 0, 0.7)";
           notification.style.color = "#fff";
           notification.style.padding = "10px";

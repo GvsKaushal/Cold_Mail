@@ -1,13 +1,29 @@
 {% include 'header.html' %}
 {% include 'navbar.html' %}
 
+<style>
+    body {
+        background-color: #c9c9c9;
+    }
+
+    .form-control {
+        background-color: #d3d3d3;
+        border-radius: 10px;
+        padding: 0.75rem;
+    }
+
+    .profile {
+        background-color: #e3e3e3;
+        border-radius: 10px;
+    }
+</style>
+
 <div class="container">
     <h1 class="text-center mb-4">Edit Profile</h1>
-    <form action="/edit-user" method="POST" class="p-3 shadow-sm rounded bg-light">
+    <form action="/edit-user" method="POST" class="p-3 profile">
         <div class="mb-3">
             <label for="username" class="form-label">Username</label>
-            <input type="text" class="form-control" id="username" name="username" value="{{ user.username }}"
-                   readonly>
+            <input type="text" class="form-control" id="username" name="username" value="{{ user.username }}" readonly>
         </div>
         <div class="mb-3">
             <label for="name" class="form-label">Name</label>
@@ -15,13 +31,11 @@
         </div>
         <div class="mb-3">
             <label for="position" class="form-label">Position</label>
-            <input type="text" class="form-control" id="position" name="position" value="{{ user.position }}"
-                   required>
+            <input type="text" class="form-control" id="position" name="position" value="{{ user.position }}" required>
         </div>
         <div class="mb-3">
             <label for="company" class="form-label">Company</label>
-            <input type="text" class="form-control" id="company" name="company" value="{{ user.company }}"
-                   required>
+            <input type="text" class="form-control" id="company" name="company" value="{{ user.company }}" required>
         </div>
         <div id="portfolio-container">
             <h4>Portfolios</h4>

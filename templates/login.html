@@ -1,6 +1,21 @@
 {% include 'header.html' %}
 {% include 'navbar.html' %}
 <style>
+    body {
+        background-color: #c9c9c9;
+    }
+
+    .form-control {
+        /* background-color: #e1e1e1; */
+        border-radius: 10px;
+        padding: 0.60rem;
+    }
+
+    .profile {
+        background-color: #e3e3e3;
+        border-radius: 10px;
+    }
+
     .container {
         margin-top: 1em;
         max-width: 600px;
@@ -15,7 +30,7 @@
 
 <div class="container">
     <h1 class="text-center mb-4">Login</h1>
-    <form action="/login" method="POST" class="p-3 shadow-sm rounded bg-light">
+    <form action="/login" method="POST" class="p-3 profile">
         <div class="mb-3">
             <label for="username" class="form-label">Username</label>
             <input type="text" class="form-control" id="username" name="username" required>

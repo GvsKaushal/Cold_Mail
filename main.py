@@ -122,7 +122,7 @@ app.add_exception_handler(NotAuthenticatedException, not_authenticated_exception
 
 @app.get("/", response_class=HTMLResponse)
 def root(request: Request, user: User = Depends(manager)):
-    return templates.TemplateResponse("index.html", {"request": request, "title": "Home", "user": user})
+    return templates.TemplateResponse("home.html", {"request": request, "title": "Home", "user": user})
 
 
 @app.get("/login", response_class=HTMLResponse)
@@ -260,7 +260,7 @@ async def generate_email(input_data: URLInput, user: User = Depends(manager)):
 
         for job in jobs:
             skills = job.get('skills', [])
-            links = portfolioo.query_links(skills,user["username"])
+            links = portfolioo.query_links(skills, user["username"])
             email = chain.write_mail(job, links, name, position, company)
             emails.append({"job": job, "email": email})
 
@@ -281,7 +281,7 @@ async def generate_email(input_data: URLInput, user: User = Depends(manager)):
             {"$set": {"links": generated_links}}
         )
 
-        redis_client.set(cache_key, str(jobs), ex=300)
+        redis_client.set(cache_key, str(jobs), ex=1200)
 
         username = user["username"]
         jobs_cache_key = f"jobs:{username}"
@@ -413,9 +413,9 @@ async def update_user_details(
     result = await users.update_one({"username": username}, {"$set": update_data})
 
     if result.modified_count == 0:
-        return RedirectResponse("/home", status_code=status.HTTP_302_FOUND)
+        return RedirectResponse("/edit-user", status_code=status.HTTP_302_FOUND)
 
-    return RedirectResponse("/home", status_code=status.HTTP_302_FOUND)
+    return RedirectResponse("/edit-user", status_code=status.HTTP_302_FOUND)
 
 
 @app.delete("/delete-job/{job_id}")
